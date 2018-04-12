@@ -11,6 +11,7 @@ namespace Carter.Response
     using Microsoft.AspNetCore.Http.Extensions;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Net.Http.Headers;
+    using Newtonsoft.Json;
 
     public static class ResponseExtensions
     {
@@ -114,5 +115,11 @@ namespace Carter.Response
                 await StreamCopyOperation.CopyToAsync(source, response.Body, default, 65536, response.HttpContext.RequestAborted);
             }
         }
+    }
+
+    public interface INegotiatedModel
+    {
+        [JsonIgnore]
+        string ViewName { get; set; }
     }
 }

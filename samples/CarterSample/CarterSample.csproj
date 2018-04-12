@@ -13,5 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Carter.csproj" />
     <ProjectReference Include="../ValidatorOnlyProject/ValidatorOnlyProject.csproj" />
+    <ProjectReference Include="../../HtmlNegotiator/HtmlNegotiator.csproj" />
   </ItemGroup>
 </Project>

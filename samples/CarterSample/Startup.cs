@@ -1,9 +1,11 @@
 namespace CarterSample
 {
     using System;
+    using System.Collections.Generic;
     using System.Threading.Tasks;
     using Carter;
     using CarterSample.Features.Actors;
+    using HtmlNegotiator;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
     using Microsoft.Extensions.Configuration;
@@ -14,6 +16,12 @@ namespace CarterSample
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IActorProvider, ActorProvider>();
+
+            //var mapper = new DefaultTypeViewMapper(new Dictionary<Type, string> { { typeof(Actor), "test.html" } });
+
+            //var mapper = new FixedMapper();
+
+            services.AddSingleton<IViewLocator>(new DefaultViewLocator(new Dictionary<Type, string> { { typeof(Actor), "testpoo.html" } }));
 
             services.AddCarter();
         }
