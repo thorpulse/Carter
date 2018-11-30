@@ -1,16 +1,20 @@
 namespace Carter
 {
     using System;
+    using System.Collections.Generic;
     using System.IO;
     using System.Linq;
     using System.Reflection;
     using System.Threading.Tasks;
+    using Carter.Response;
     using FluentValidation;
     using Microsoft.AspNetCore.Builder;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Routing;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Logging;
+    using Microsoft.OpenApi.Any;
+    using Microsoft.OpenApi.Models;
 
     public static class CarterExtensions
     {
@@ -36,10 +40,14 @@ namespace Carter
             //Create a "startup scope" to resolve modules from
             using (var scope = builder.ApplicationServices.CreateScope())
             {
+                Dictionary<(string verb, string path), RouteMetaData> metaDatas = new Dictionary<(string verb, string path), RouteMetaData>();
+
                 //Get all instances of CarterModule to fetch and register declared routes
                 foreach (var module in scope.ServiceProvider.GetServices<CarterModule>())
                 {
                     var moduleType = module.GetType();
+
+                    metaDatas = metaDatas.Concat(module.RouteMetaData).ToDictionary(x => x.Key, x => x.Value);
 
                     var distinctPaths = module.Routes.Keys.Select(route => route.path).Distinct();
 
@@ -48,6 +56,95 @@ namespace Carter
                         routeBuilder.MapRoute(path, CreateRouteHandler(path, moduleType));
                     }
                 }
+
+                routeBuilder.MapRoute("openapi", async context =>
+                {
+                    var document = new OpenApiDocument
+                    {
+                        Info = new OpenApiInfo
+                        {
+                            Version = "3.0.0",
+                            Title = "Carter <3 OpenAPI"
+                        },
+                        Servers = new List<OpenApiServer>
+                        {
+                            new OpenApiServer { Url = "http://carter.io/api" }
+                        },
+                        Paths = new OpenApiPaths()
+                    };
+
+                    foreach (var routeMetaData in metaDatas.GroupBy(pair => pair.Key.path))
+                    {
+                        var pathItem = new OpenApiPathItem();
+
+                        var methodRoutes = routeMetaData.Select(x => x);
+
+                        foreach (var keyValuePair in methodRoutes)
+                        {
+                            var operation = new OpenApiOperation();
+                           
+                            foreach (var valueStatusCode in keyValuePair.Value.Responses)
+                            {
+                                var propNames = valueStatusCode.Response?.GetProperties().Select(x => x.Name.ToLower());
+
+                                var propObj = new OpenApiObject();
+                                
+                                if (propNames != null)
+                                {
+                                    foreach (var propertyInfo in propNames)
+                                    {
+                                        propObj.Add(propertyInfo, new OpenApiString(""));
+                                    }
+                                    
+                                    var respObj = new OpenApiObject();
+                                    respObj.Add(valueStatusCode.Response.Name.ToLower(), propObj);
+                                }
+
+                                operation.Responses.Add(valueStatusCode.code.ToString(), new OpenApiResponse
+                                {
+                                    Description = valueStatusCode.description,
+                                    Content = new Dictionary<string, OpenApiMediaType>
+                                    {
+                                        {
+                                            "application/json",
+                                            new OpenApiMediaType
+                                            {
+                                                Example = propObj
+                                                // Example = new OpenApiObject
+                                                // {
+                                                //     [keyValuePair.Value.Response.Name.ToLower()] =
+                                                //         new OpenApiObject
+                                                //         {
+                                                //             //will need to use reflection here to get each property name and type
+                                                //             //then property name will go on the left and a new openapistring/number/boolean/array type created with the property value passed in
+                                                //             // although the value can be made up date based on type maybe
+                                                //             ["status"] = new OpenApiString("Status1"),
+                                                //             ["id"] = new OpenApiString("v1"),
+                                                //             ["links"] = new OpenApiArray
+                                                //             {
+                                                //                 new OpenApiObject
+                                                //                 {
+                                                //                     ["href"] = new OpenApiString("http://example.com/1"),
+                                                //                     ["rel"] = new OpenApiString("sampleRel1")
+                                                //                 }
+                                                //             }
+                                                //         },
+                                                // },
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+
+                            pathItem.Operations.Add(OperationType.Get, operation);
+                        }
+
+                        document.Paths.Add(routeMetaData.Key, pathItem);
+                        //  spec.Add(routeMetaData.Key, routeMetaData.Value);
+                    }
+
+                    await context.Response.AsJson(document);
+                });
             }
 
             return builder.UseRouter(routeBuilder.Build());

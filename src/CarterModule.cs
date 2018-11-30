@@ -6,12 +6,22 @@ namespace Carter
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Routing;
 
+    public abstract class RouteMetaData
+    {
+        public abstract Type Request { get; }
+
+        public abstract (int code, string description, Type Response)[] Responses { get; }
+    }
+
+
     /// <summary>
     /// A class for defining routes in your Carter application
     /// </summary>
     public class CarterModule
     {
         public readonly Dictionary<(string verb, string path), RequestDelegate> Routes;
+
+        public readonly Dictionary<(string verb, string path), RouteMetaData> RouteMetaData;
 
         private readonly string basePath;
 
@@ -39,6 +49,8 @@ namespace Carter
         protected CarterModule(string basePath)
         {
             this.Routes = new Dictionary<(string verb, string path), RequestDelegate>(RouteComparer.Comparer);
+            this.RouteMetaData = new Dictionary<(string verb, string path), RouteMetaData>(RouteComparer.Comparer);
+
             var cleanPath = this.RemoveStartingSlash(basePath);
             this.basePath = this.RemoveEndingSlash(cleanPath);
         }
@@ -54,17 +66,27 @@ namespace Carter
             this.Get(path, RequestDelegate);
         }
 
-        /// <summary>
-        /// Declares a route for GET requests
-        /// </summary>
-        /// <param name="path">The path for your route</param>
-        /// <param name="handler">The handler that is invoked when the route is hit</param>
         protected void Get(string path, RequestDelegate handler)
         {
             path = this.RemoveStartingSlash(path);
             path = this.PrependBasePath(path);
             this.Routes.Add((HttpMethods.Get, path), handler);
             this.Routes.Add((HttpMethods.Head, path), handler);
+        }
+
+        /// <summary>
+        /// Declares a route for GET requests
+        /// </summary>
+        /// <param name="path">The path for your route</param>
+        /// <param name="handler">The handler that is invoked when the route is hit</param>
+        protected void Get<T>(string path, RequestDelegate handler) where T: RouteMetaData
+        {
+            path = this.RemoveStartingSlash(path);
+            path = this.PrependBasePath(path);
+            this.Routes.Add((HttpMethods.Get, path), handler);
+            this.Routes.Add((HttpMethods.Head, path), handler);
+
+            this.RouteMetaData.Add((HttpMethods.Get, path), Activator.CreateInstance<T>());
         }
 
         /// <summary>
@@ -83,7 +105,6 @@ namespace Carter
         /// </summary>
         /// <param name="path">The path for your route</param>
         /// <param name="handler">The handler that is invoked when the route is hit</param>
-
         protected void Post(string path, RequestDelegate handler)
         {
             path = this.RemoveStartingSlash(path);

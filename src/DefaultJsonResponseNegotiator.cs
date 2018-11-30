@@ -18,7 +18,7 @@
             {
                 NamingStrategy = new CamelCaseNamingStrategy()
             };
-            this.jsonSettings = new JsonSerializerSettings { ContractResolver = contractResolver };
+            this.jsonSettings = new JsonSerializerSettings { ContractResolver = contractResolver, NullValueHandling = NullValueHandling.Ignore};
         }
 
         public bool CanHandle(MediaTypeHeaderValue accept)
