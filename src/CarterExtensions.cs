@@ -82,58 +82,68 @@ namespace Carter
                         foreach (var keyValuePair in methodRoutes)
                         {
                             var operation = new OpenApiOperation();
-                           
+
                             foreach (var valueStatusCode in keyValuePair.Value.Responses)
                             {
                                 var propNames = valueStatusCode.Response?.GetProperties().Select(x => x.Name.ToLower());
 
                                 var propObj = new OpenApiObject();
-                                
+
                                 if (propNames != null)
                                 {
                                     foreach (var propertyInfo in propNames)
                                     {
                                         propObj.Add(propertyInfo, new OpenApiString(""));
                                     }
-                                    
+
                                     var respObj = new OpenApiObject();
                                     respObj.Add(valueStatusCode.Response.Name.ToLower(), propObj);
                                 }
 
-                                operation.Responses.Add(valueStatusCode.code.ToString(), new OpenApiResponse
+                                OpenApiResponse openApiResponse;
+                                if (propNames != null)
                                 {
-                                    Description = valueStatusCode.description,
-                                    Content = new Dictionary<string, OpenApiMediaType>
+                                    openApiResponse = new OpenApiResponse
                                     {
+                                        Description = valueStatusCode.description,
+                                        Content = new Dictionary<string, OpenApiMediaType>
                                         {
-                                            "application/json",
-                                            new OpenApiMediaType
                                             {
-                                                Example = propObj
-                                                // Example = new OpenApiObject
-                                                // {
-                                                //     [keyValuePair.Value.Response.Name.ToLower()] =
-                                                //         new OpenApiObject
-                                                //         {
-                                                //             //will need to use reflection here to get each property name and type
-                                                //             //then property name will go on the left and a new openapistring/number/boolean/array type created with the property value passed in
-                                                //             // although the value can be made up date based on type maybe
-                                                //             ["status"] = new OpenApiString("Status1"),
-                                                //             ["id"] = new OpenApiString("v1"),
-                                                //             ["links"] = new OpenApiArray
-                                                //             {
-                                                //                 new OpenApiObject
-                                                //                 {
-                                                //                     ["href"] = new OpenApiString("http://example.com/1"),
-                                                //                     ["rel"] = new OpenApiString("sampleRel1")
-                                                //                 }
-                                                //             }
-                                                //         },
-                                                // },
+                                                "application/json",
+                                                new OpenApiMediaType
+                                                {
+                                                    Example = propObj
+                                                    // Example = new OpenApiObject
+                                                    // {
+                                                    //     [keyValuePair.Value.Response.Name.ToLower()] =
+                                                    //         new OpenApiObject
+                                                    //         {
+                                                    //             //will need to use reflection here to get each property name and type
+                                                    //             //then property name will go on the left and a new openapistring/number/boolean/array type created with the property value passed in
+                                                    //             // although the value can be made up date based on type maybe
+                                                    //             ["status"] = new OpenApiString("Status1"),
+                                                    //             ["id"] = new OpenApiString("v1"),
+                                                    //             ["links"] = new OpenApiArray
+                                                    //             {
+                                                    //                 new OpenApiObject
+                                                    //                 {
+                                                    //                     ["href"] = new OpenApiString("http://example.com/1"),
+                                                    //                     ["rel"] = new OpenApiString("sampleRel1")
+                                                    //                 }
+                                                    //             }
+                                                    //         },
+                                                    // },
+                                                }
                                             }
                                         }
-                                    }
-                                });
+                                    };
+                                }
+                                else
+                                {
+                                    openApiResponse = new OpenApiResponse() { Description = valueStatusCode.description };
+                                }
+
+                                operation.Responses.Add(valueStatusCode.code.ToString(), openApiResponse);
                             }
 
                             pathItem.Operations.Add(OperationType.Get, operation);
