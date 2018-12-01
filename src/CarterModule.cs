@@ -13,7 +13,6 @@ namespace Carter
         public abstract (int code, string description, Type Response)[] Responses { get; }
     }
 
-
     /// <summary>
     /// A class for defining routes in your Carter application
     /// </summary>
@@ -74,12 +73,18 @@ namespace Carter
             this.Routes.Add((HttpMethods.Head, path), handler);
         }
 
+        protected void Get<T>(string path, Func<HttpRequest, HttpResponse, RouteData, Task> handler) where T : RouteMetaData
+        {
+            Task RequestDelegate(HttpContext httpContext) => handler(httpContext.Request, httpContext.Response, httpContext.GetRouteData());
+            this.Get<T>(path, RequestDelegate);
+        }
+
         /// <summary>
         /// Declares a route for GET requests
         /// </summary>
         /// <param name="path">The path for your route</param>
         /// <param name="handler">The handler that is invoked when the route is hit</param>
-        protected void Get<T>(string path, RequestDelegate handler) where T: RouteMetaData
+        protected void Get<T>(string path, RequestDelegate handler) where T : RouteMetaData
         {
             path = this.RemoveStartingSlash(path);
             path = this.PrependBasePath(path);

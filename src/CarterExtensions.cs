@@ -6,6 +6,7 @@ namespace Carter
     using System.Linq;
     using System.Reflection;
     using System.Threading.Tasks;
+    using Carter.Request;
     using Carter.Response;
     using FluentValidation;
     using Microsoft.AspNetCore.Builder;
@@ -85,24 +86,46 @@ namespace Carter
 
                             foreach (var valueStatusCode in keyValuePair.Value.Responses)
                             {
-                                var propNames = valueStatusCode.Response?.GetProperties().Select(x => x.Name.ToLower());
-
-                                var propObj = new OpenApiObject();
-
-                                if (propNames != null)
+                                OpenApiResponse openApiResponse;
+                                if (valueStatusCode.Response == null)
                                 {
+                                    openApiResponse = new OpenApiResponse { Description = valueStatusCode.description };
+                                }
+                                else
+                                {
+                                    bool arrayType = false;
+                                    Type responseType;
+
+                                    if (valueStatusCode.Response.IsArray() || valueStatusCode.Response.IsCollection() || valueStatusCode.Response.IsEnumerable())
+                                    {
+                                        arrayType = true;
+                                        responseType = valueStatusCode.Response.GetElementType();
+                                        if (responseType == null)
+                                        {
+                                            responseType = valueStatusCode.Response.GetGenericArguments().FirstOrDefault();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        responseType = valueStatusCode.Response;
+                                    }
+
+                                    var propNames = responseType.GetProperties().Select(x => x.Name.ToLower());
+
+                                    var arrbj = new OpenApiArray();
+                                    var propObj = new OpenApiObject();
+
                                     foreach (var propertyInfo in propNames)
                                     {
                                         propObj.Add(propertyInfo, new OpenApiString(""));
                                     }
 
-                                    var respObj = new OpenApiObject();
-                                    respObj.Add(valueStatusCode.Response.Name.ToLower(), propObj);
-                                }
+                                    if (arrayType)
+                                    {
+                                        arrbj.Add(propObj);
+                                    }
 
-                                OpenApiResponse openApiResponse;
-                                if (propNames != null)
-                                {
+                                    var respObj = arrayType ? new OpenApiObject { { responseType.Name.ToLower(), arrbj } } : propObj;
                                     openApiResponse = new OpenApiResponse
                                     {
                                         Description = valueStatusCode.description,
@@ -112,35 +135,11 @@ namespace Carter
                                                 "application/json",
                                                 new OpenApiMediaType
                                                 {
-                                                    Example = propObj
-                                                    // Example = new OpenApiObject
-                                                    // {
-                                                    //     [keyValuePair.Value.Response.Name.ToLower()] =
-                                                    //         new OpenApiObject
-                                                    //         {
-                                                    //             //will need to use reflection here to get each property name and type
-                                                    //             //then property name will go on the left and a new openapistring/number/boolean/array type created with the property value passed in
-                                                    //             // although the value can be made up date based on type maybe
-                                                    //             ["status"] = new OpenApiString("Status1"),
-                                                    //             ["id"] = new OpenApiString("v1"),
-                                                    //             ["links"] = new OpenApiArray
-                                                    //             {
-                                                    //                 new OpenApiObject
-                                                    //                 {
-                                                    //                     ["href"] = new OpenApiString("http://example.com/1"),
-                                                    //                     ["rel"] = new OpenApiString("sampleRel1")
-                                                    //                 }
-                                                    //             }
-                                                    //         },
-                                                    // },
+                                                    Example = respObj
                                                 }
                                             }
                                         }
                                     };
-                                }
-                                else
-                                {
-                                    openApiResponse = new OpenApiResponse() { Description = valueStatusCode.description };
                                 }
 
                                 operation.Responses.Add(valueStatusCode.code.ToString(), openApiResponse);
@@ -150,7 +149,6 @@ namespace Carter
                         }
 
                         document.Paths.Add(routeMetaData.Key, pathItem);
-                        //  spec.Add(routeMetaData.Key, routeMetaData.Value);
                     }
 
                     await context.Response.AsJson(document);

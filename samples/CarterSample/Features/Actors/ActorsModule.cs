@@ -1,5 +1,7 @@
 namespace CarterSample.Features.Actors
 {
+    using System;
+    using System.Collections.Generic;
     using System.IO;
     using Carter;
     using Carter.ModelBinding;
@@ -10,13 +12,13 @@ namespace CarterSample.Features.Actors
     {
         public ActorsModule(IActorProvider actorProvider)
         {
-            this.Get("/actors", async (req, res, routeData) =>
+            this.Get<ListActors>("/actors", async (req, res, routeData) =>
             {
                 var people = actorProvider.Get();
                 await res.AsJson(people);
             });
 
-            this.Get("/actors/{id:int}", async (req, res, routeData) =>
+            this.Get<ListActorsById>("/actors/{id:int}", async (req, res, routeData) =>
             {
                 var person = actorProvider.Get(routeData.As<int>("id"));
                 await res.Negotiate(person);
@@ -63,5 +65,19 @@ namespace CarterSample.Features.Actors
                 }
             });
         }
+    }
+
+    public class ListActors : RouteMetaData
+    {
+        public override Type Request { get; }
+
+        public override (int code, string description, Type Response)[] Responses { get; } = { (200, "A list of actors", typeof(IEnumerable<Actor>)) };
+    }
+
+    public class ListActorsById : RouteMetaData
+    {
+        public override Type Request { get; }
+
+        public override (int code, string description, Type Response)[] Responses { get; } = { (200, "A list of actors", typeof(Actor)) };
     }
 }

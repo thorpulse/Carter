@@ -15,7 +15,6 @@ namespace CarterSample.Features.Home
                 await res.WriteAsync("There's no place like 127.0.0.1");
             });
 
-            this.Get<ListById>("/products", async context => await context.Response.WriteAsync("pets"));
 
             this.After = (ctx) =>
             {
